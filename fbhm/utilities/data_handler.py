@@ -1,6 +1,7 @@
 import matplotlib
 import pandas as pd
 from pathlib import Path
+from matplotlib import pyplot
 
 class DataHandler:
     def __init__(self, dfp):
@@ -27,19 +28,34 @@ class DataHandler:
         data = pd.concat([pd.read_json(f, lines=True) for f in jsonl_files])
 
         # remove all duplicate entries and reindex the dataset
-        return data.drop_duplicates().reset_index(drop=True)
+        data = data.drop_duplicates().reset_index(drop=True)
+        unlabeled_data = data.loc[data['label'].isna()].reset_index(drop=True)
+        labeled_data = data.loc[data['label'].notna()].reset_index(drop=True)
+        return data, labeled_data, unlabeled_data
 
     def compute_data_analytics(self, df):
         # Class and Shape analysis
         pd.set_option("display.precision", 2)
         self.da['SHAPE'] = df.shape
-        self.da['CA'] = df['label'].value_counts(normalize=True)
+        #self.da['CA'] = df['label'].value_counts(normalize=True)
 
         # Text analysis
-        text_df = df['text'].apply(lambda s: len(s))
-        fig = text_df.hist(bins='auto', alpha=0.5, ec='black').get_figure()
-        fig.savefig(self.dfp/'text_len.png')
-        self.da['TA'] = text_df.describe()
+        print(df.shape)
+        class0 = df.loc[df['label'] == 0.0]
+        class1 = df.loc[df['label'] == 1.0]
+        print(f'# Class 0 data points: {class0.shape}')
+        print(f'# Class 1 data points: {class1.shape}')
+
+        text_df = class0['text'].apply(lambda s: len(s))
+        pyplot.hist(text_df, bins='auto', alpha=0.75, ec='black', label='non-hateful')
+        self.da['TA0'] = text_df.describe()
+
+        text_df = class1['text'].apply(lambda s: len(s))
+        pyplot.hist(text_df, bins='auto', alpha=0.5, ec='black', label='hateful')
+        self.da['TA1'] = text_df.describe()
+        
+        pyplot.legend()
+        pyplot.savefig(self.dfp/'text_len.png')
         return None
 
     # Train/Val/Test split functions
